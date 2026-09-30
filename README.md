@@ -4,9 +4,10 @@ Starter template for the **Development of AI Applications** course final group p
 
 ## Team members
 
-- Member 1 Name (email@example.com)
-- Member 2 Name (email@example.com)
-- Member 3 Name (email@example.com)
+- Budhathoki Tika (tika.budhathoki@student.hamk.fi)
+- Tusher Monjurul (monjurul.tusher@student.hamk.fi)
+- Amil Mahfuj (mahfuj.amil@student.hamk.fi)
+- Petri Suopanki (petri.suopanki@student.hamk.fi )
 
 ## Problem
 
