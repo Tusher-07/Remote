@@ -1,6 +1,4 @@
-# Project name
-
-Starter template for the **Development of AI Applications** course final group project.
+# AI Maintenance Manual Assistant for Industrial Equipment
 
 ## Team members
 
@@ -12,23 +10,24 @@ Starter template for the **Development of AI Applications** course final group p
 ## Problem
 
 ### Intended users
-Who are the primary target users of this application?
+The primary users are industrial maintenance personnel and equipment operators who need instructions related to equipment fault codes.
 
 ### Problem statement
-What specific problem does this application solve for those users?
+Finding troubleshooting instructions in lengthy, equipment-specific manuals takes time. Paper manuals for older equipment may also be missing or unavailable. The application helps users find instructions for the correct equipment and fault code in stored digital manuals and presents them as clear steps.
 
 ### Why AI is appropriate
-Why does this problem require AI / LLM capabilities rather than traditional deterministic software?
+Traditional search can locate a fault code, but an LLM enables natural-language queries, clarifying questions, and the combination of information from different manual sections into an understandable response. Retrieval-Augmented Generation (RAG) grounds the response in the content of the selected manuals.
 
 ## Solution
-
-Briefly describe your application, its primary value proposition, and how it addresses the problem statement above.
+We will develop an AI assistant that retrieves troubleshooting and repair instructions from stored operation and maintenance manuals. It presents numbered steps, source references, and the safety requirements stated in the manual.
+The prototype will use approximately 2–5 example manuals, a Gradio user interface, and an LLM running locally through Ollama. Automated web search is outside the scope of the first version.
+The application will be evaluated using demonstration questions to assess answer accuracy, source references, and the handling of missing information.
 
 ## Main user workflow
 
-1. **User Input:** The user submits a prompt or query via the Gradio user interface.
-2. **Processing & Guardrails:** The application service layer (`src/services/ai_service.py`) validates and formats the request.
-3. **Model Response:** The model client calls Ollama locally and returns the response back through the service layer to the UI.
+1. **User Input:** The user enters a fault code and equipment details through the Gradio interface.
+2. **Processing & Guardrails:** The service layer validates the input, requests additional details when needed, and retrieves relevant sections from the correct manual. The response is restricted to the retrieved information.
+3. **Model Response:** The LLM running through Ollama turns the retrieved instructions into a numbered list of steps, displayed in the interface with source references. If insufficient information is found, the application explains this and advises the user to look for the correct manual on the manufacturer’s website.
 
 ## Architecture
 
