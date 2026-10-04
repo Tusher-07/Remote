@@ -57,7 +57,8 @@ Ollama (Local LLM Server)
 RAG (Retrieval-Augmented Generation)
 
 ### Capability justification
-Explain why the selected capability is useful and necessary for your application's user problem.
+
+RAG retrieves relevant instructions from equipment manuals and provides them as context for the LLM. This helps the assistant give equipment-specific troubleshooting steps with source references, reducing the risk of unsupported advice.
 
 ## Setup
 
