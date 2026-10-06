@@ -62,61 +62,7 @@ RAG retrieves relevant instructions from equipment manuals and provides them as 
 
 ## Setup
 
-### 1. Create the Conda environment
 
-```bash
-conda env create -f environment.yml
-```
-
-### 2. Activate the environment
-
-```bash
-conda activate dev-ai-project
-```
-
-### 3. Configure environment variables
-
-Copy `.env.example` to create your local `.env` configuration file:
-
-On Linux / macOS:
-```bash
-cp .env.example .env
-```
-
-On Windows (Command Prompt / PowerShell):
-```powershell
-copy .env.example .env
-```
-
-Ensure `.env` contains valid values for `OLLAMA_BASE_URL` and `MODEL_NAME`:
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-MODEL_NAME=llama3.2
-```
-
-### 4. Start Ollama
-
-Make sure Ollama is installed and running locally, then pull your configured model:
-
-```bash
-ollama run llama3.2
-```
-
-### 5. Run the application
-
-Run the application from the root directory of the project:
-
-```bash
-python -m app.main
-```
-
-Then open your browser at `http://localhost:7860`.
-
-### 6. Run automated tests
-
-```bash
-pytest
-```
 
 ## Evaluation
 
