@@ -68,23 +68,7 @@ def chat_reply(message, history, model_id):
     return reply.answer, metadata, format_sources(result)
 
 
-with gr.Blocks(title="University Support Assistant — Chapter 4") as demo:
-    gr.Markdown("# University Support Assistant")
 
-    model_selector = gr.Dropdown(
-        choices=INSTALLED_MODELS,
-        value=DEFAULT_MODEL_ID,
-        label="Model",
-    )
-
-    metadata = gr.JSON(label="Response information")
-    sources = gr.Markdown(label="Sources")
-
-    gr.ChatInterface(
-        fn=chat_reply,
-        additional_inputs=[model_selector],
-        additional_outputs=[metadata, sources],
-    )
 
 def build_ui() -> gr.Blocks:
     """
