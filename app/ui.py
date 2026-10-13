@@ -2,11 +2,12 @@ import gradio as gr
 from src.services.ai_service import generate_response
 
 
+
 def build_ui() -> gr.Blocks:
     """
     Builds the Gradio interface for the AI Maintenance Manual Assistant.
     """
-
+    
     with gr.Blocks(title="AI Maintenance Manual Assistant") as demo:
 
         gr.Markdown(
@@ -57,7 +58,3 @@ def build_ui() -> gr.Blocks:
         )
 
     return demo
-
-if __name__ == "__main__":
-    demo = build_ui()
-    demo.launch()
