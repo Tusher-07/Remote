@@ -143,30 +143,6 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
     embedding_model = SentenceTransformer(EMBEDDING_MODEL)
 
 
-    #token length testing
-
-
-    # token_lengths = [
-    #     len(embedding_model.tokenizer.encode(
-    #         chunk["text"],
-    #         truncation=False,
-    #         add_special_tokens=True,
-    #     ))
-    #     for chunk in CHUNKS
-    # ]
-
-    # limit = embedding_model.max_seq_length
-
-    # print("Mallin tokenraja:", limit)
-    # print("Pisin chunk tokeneina:", max(token_lengths, default=0))
-    # print(
-    #     "Rajan ylittäviä chunkkeja:",
-    #     sum(length > limit for length in token_lengths),
-    #     "/",
-    #     len(CHUNKS),
-    # )
-
-
     chunk_vectors = embedding_model.encode(
         [chunk["text"] for chunk in CHUNKS],
         normalize_embeddings=True,
@@ -190,24 +166,7 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         metadatas=[chunk["metadata"] for chunk in CHUNKS],
     )
 
-   
-    
     return len(CHUNKS), True
-
-    #test prints
-    
-    #print(chunk_vectors[0])
-
-    #print("Indexed chunks:", collection.count())
-    #print(type(collection))
-    #print("Pages with text:", len(documents))
-    #print("Chunks:", len(CHUNKS))
-    #print("Manuaalin merkkejä:", len(manual_text))
-    #print("Ensimmäiset sivurajat:", page_ranges[:3])
-
-    #if CHUNKS:
-    #    print(CHUNKS[0])
-
 
 def retrieve(question: str, course="DEV-AI", top_k=3):
     query_vector = embedding_model.encode(

@@ -3,6 +3,7 @@ from pathlib import Path
 import gradio as gr
 
 from src.services.ai_service import generate_response
+from app.ai_service import INSTALLED_MODELS, DEFAULT_MODEL_ID
 from app.knowledge import chunk_and_embed_pdf
 
 
@@ -52,7 +53,42 @@ def process_manual(manual_name, manufacturer, model, device_type):
 
     except Exception as error:
         return f"Processing failed: {error}", ""
+    
+def content_to_text(content):
+    if isinstance(content, str):
+        return content
 
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+
+    return ""
+
+
+def history_for_service(history):
+    converted = []
+
+    for message in history:
+        role = message.get("role")
+        text = content_to_text(message.get("content"))
+
+        if role in {"user", "assistant"} and text:
+            converted.append({"role": role, "content": text})
+
+    return converted
+
+def chat_reply(message, history, model_id):
+    service_history = history_for_service(history)
+    result = generate_response(
+        message, 
+        service_history, 
+        model_id=model_id,
+        )
+    return result 
+    
 
 def build_ui() -> gr.Blocks:
     """Build the maintenance assistant interface."""
@@ -149,50 +185,63 @@ def build_ui() -> gr.Blocks:
             - What should I check before restarting the machine?
             """
         )
-
-        user_input = gr.Textbox(
-            lines=4,
-            placeholder="Enter a fault code or maintenance question...",
-            label="Maintenance Question",
-            max_length=500,
+        
+        # Changed to Gradios chat interface
+        model_selector = gr.Dropdown(
+            choices=INSTALLED_MODELS,
+            value=DEFAULT_MODEL_ID,
+            label="Model",
         )
+
+        gr.ChatInterface(
+            fn=chat_reply,
+            additional_inputs=[model_selector],
+        )
+        
+
+        # user_input = gr.Textbox(
+        #     lines=4,
+        #     placeholder="Enter a fault code or maintenance question...",
+        #     label="Maintenance Question",
+        #     max_length=500,
+        # )
 
   
-        with gr.Row():
-            submit_btn = gr.Button(
-                "🤖 Ask Assistant",
-                variant="primary",
-                size="lg",
-            )
-            clear_btn = gr.Button(
-                "🧹 Clear",
-                variant="secondary",
-                size="lg",
-            )
+        # with gr.Row():
+        #     submit_btn = gr.Button(
+        #         "🤖 Ask Assistant",
+        #         variant="primary",
+        #         size="lg",
+        #     )
+        #     clear_btn = gr.Button(
+        #         "🧹 Clear",
+        #         variant="secondary",
+        #         size="lg",
+        #     )
 
-        output_box = gr.Textbox(
-            lines=10,
-            label="AI Answer",
-            interactive=False,
-        )
+        # output_box = gr.Textbox(
+        #     lines=10,
+        #     label="AI Answer",
+        #     interactive=False,
+        # )
 
 
-        clear_btn.click(
-            fn=lambda: ("", ""),
-            inputs=None,
-            outputs=[user_input, output_box],
-        )
+        # clear_btn.click(
+        #     fn=lambda: ("", ""),
+        #     inputs=None,
+        #     outputs=[user_input, output_box],
+        # )
 
-        submit_btn.click(
-            fn=generate_response,
-            inputs=user_input,
-            outputs=output_box,
-        )
+        # submit_btn.click(
+        #     fn=generate_response,
+        #     inputs=user_input,
+        #     outputs=output_box,
+        # )
 
-        user_input.submit(
-            fn=generate_response,
-            inputs=user_input,
-            outputs=output_box,
-        )
+        # user_input.submit(
+        #     fn=generate_response,
+        #     inputs=user_input,
+        #     outputs=output_box,
+        # )
 
     return demo

@@ -3,7 +3,7 @@ from typing import Literal
 from ollama import Client
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from knowledge import retrieve
+from app.knowledge import retrieve
 
 OLLAMA_HOST = "http://localhost:11434"
 model_client = Client(host=OLLAMA_HOST, timeout=60.0)
@@ -16,7 +16,7 @@ if not INSTALLED_MODELS:
 
 DEFAULT_MODEL_ID = INSTALLED_MODELS[0]
 
-GROUNDING_INSTRUCTION = """You are a university support assistant used for teaching.
+GROUNDING_INSTRUCTION = """You are a manual support assistant used for finding instructions.
 Answer the user's question using only the supplied evidence.
 Do not invent facts that are missing from the evidence.
 
@@ -30,7 +30,7 @@ If the evidence does not contain enough information:
 - return an empty citations list;
 - set needs_human to true.
 
-Choose category course, account, or other.
+Choose category fault, maintenance, operation, or other.
 Return only the structured response requested by the schema.
 """
 
@@ -43,7 +43,7 @@ class GroundedReply(BaseModel):
     )
 
     answer: str = Field(min_length=1, max_length=600)
-    category: Literal["course", "account", "other"]
+    category: Literal["fault", "maintenance", "operation", "other"]
     needs_human: bool
     evidence_status: Literal["supported", "insufficient"]
     citations: list[int] = Field(default_factory=list, max_length=3)

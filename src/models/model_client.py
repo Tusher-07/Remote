@@ -1,4 +1,5 @@
 from typing import Optional
+
 import ollama
 from src.config import config
 
@@ -26,16 +27,21 @@ class OllamaModelClient:
         self.model_name = model_name or config.model_name
         self._client = ollama.Client(host=self.base_url)
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, history=None, model_id=None) -> str:
         """
         Sends a user prompt to local Ollama model and returns generated response text.
         
         Raises ModelClientError subclass if connection or execution fails.
         """
+
+        selected_model = model_id or self.model_name
+        messages = list(history or [])
+        messages.append({"role": "user", "content": prompt})
+        
         try:
             response = self._client.chat(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                model=selected_model,
+                messages=messages,
             )
             
             # Standardize extraction from dict or chat response object
@@ -53,7 +59,7 @@ class OllamaModelClient:
                 ) from err
             elif "not found" in err_str or "404" in err_str:
                 raise ModelNotFoundError(
-                    f"Model '{self.model_name}' is not installed in local Ollama."
+                    f"Model '{selected_model}' is not installed in local Ollama."
                 ) from err
             else:
                 raise ModelClientError(f"Error communicating with Ollama: {err}") from err

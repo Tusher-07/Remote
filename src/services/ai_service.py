@@ -24,7 +24,7 @@ class AIService:
             self.model_client = OllamaModelClient()
         return self.model_client
 
-    def process_message(self, user_message: str) -> AIResponse:
+    def process_message(self, user_message: str, history=None, model_id=None) -> AIResponse:
         """
         Processes a raw user message string and returns a structured AIResponse.
         Catches technical failures and converts them to friendly user-facing messages.
@@ -36,14 +36,29 @@ class AIService:
                 success=False,
                 error_message="User message was empty.",
             )
-
+        if not history:
+            return AIResponse(
+                content="Please provide device manufacturer and model.",
+                success=True,
+            )
+                
         try:
             # 2. Schema validation
             request = UserRequest(message=user_message.strip())
 
             # 3. Call model client
+            
+            #test print
+            print("Before model call", flush=True)
+            
             client = self._get_client()
-            response_text = client.generate(request.message)
+            response_text = client.generate(
+                request.message, 
+                history=history, 
+                model_id=model_id)
+            
+            #test print
+            print("Model call completed", flush=True)
 
             return AIResponse(
                 content=response_text,
@@ -85,7 +100,7 @@ class AIService:
             )
 
 
-def generate_response(user_message: str, service: Optional[AIService] = None) -> str:
+def generate_response(user_message: str, history = None, model_id=None, service: Optional[AIService] = None) -> str:
     """
     Main reusable service entry point used by the UI layer.
     
@@ -93,5 +108,9 @@ def generate_response(user_message: str, service: Optional[AIService] = None) ->
     the generated text response (or a friendly error message).
     """
     active_service = service or AIService()
-    response = active_service.process_message(user_message)
+    response = active_service.process_message(
+        user_message,
+        history=history,
+        model_id=model_id
+    )
     return response.content
