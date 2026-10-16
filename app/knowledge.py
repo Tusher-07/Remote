@@ -1,11 +1,28 @@
+from pathlib import Path
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
+import chromadb
+
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_search_resources():
+    embedding_model = SentenceTransformer("BAAI/bge-m3")
+
+    chroma_client = chromadb.PersistentClient(
+        path=str(Path(__file__).resolve().parent.parent / "data" / "chroma")
+    )
+
+    collection = chroma_client.get_collection(
+        name="maintenance_manuals_bge_m3"
+    )
+
+    return embedding_model, collection
+
+
+
 def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: str):
     
-
-    from pathlib import Path
-    from pypdf import PdfReader
-    from sentence_transformers import SentenceTransformer
-    import chromadb
-
     #EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_MODEL = "BAAI/bge-m3"
 
@@ -139,6 +156,11 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         page_ranges,
         manual_metadata,
     ) 
+    for chunk in CHUNKS:
+        if "Connected to ground" in chunk["text"]:
+            print(chunk["metadata"])
+            print(chunk["text"])
+    return 
 
     embedding_model = SentenceTransformer(EMBEDDING_MODEL)
 
@@ -147,8 +169,6 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         [chunk["text"] for chunk in CHUNKS],
         normalize_embeddings=True,
     ).tolist()
-
-    
 
     chroma_client = chromadb.PersistentClient(
         path=str(Path(__file__).resolve().parent.parent / "data" / "chroma")
@@ -168,7 +188,15 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
 
     return len(CHUNKS), True
 
-def retrieve(question: str, course="DEV-AI", top_k=3):
+def retrieve(
+    question: str, 
+    manufacturer: str, 
+    model: str,
+    embedding_model,
+    collection, 
+    top_k=3
+    ):
+    
     query_vector = embedding_model.encode(
         [question],
         normalize_embeddings=True,
@@ -177,7 +205,12 @@ def retrieve(question: str, course="DEV-AI", top_k=3):
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=min(top_k, collection.count()),
-        where={"course": course},
+        where={
+            "$and": [
+                {"manufacturer": manufacturer},
+                {"model": model}
+            ]
+            },
         include=["documents", "metadatas", "distances"],
     )
 
@@ -192,8 +225,9 @@ def retrieve(question: str, course="DEV-AI", top_k=3):
         evidence.append({
             "id": chunk_id,
             "text": text,
-            "title": metadata["title"],
-            "page": metadata["page"],
+            "manual": metadata["manual"],
+            "page_start": metadata["page_start"],
+            "page_end": metadata["page_end"],
             "distance": round(float(distance), 3),
         })
 

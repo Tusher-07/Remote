@@ -3,7 +3,7 @@ from pathlib import Path
 import gradio as gr
 
 from src.services.ai_service import generate_response
-from app.ai_service import INSTALLED_MODELS, DEFAULT_MODEL_ID
+from src.services.ai_service import INSTALLED_MODELS, DEFAULT_MODEL_ID
 from app.knowledge import chunk_and_embed_pdf
 
 

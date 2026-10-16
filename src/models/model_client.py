@@ -1,3 +1,4 @@
+from pyexpat.errors import messages
 from typing import Optional
 
 import ollama
@@ -27,7 +28,7 @@ class OllamaModelClient:
         self.model_name = model_name or config.model_name
         self._client = ollama.Client(host=self.base_url)
 
-    def generate(self, prompt: str, history=None, model_id=None) -> str:
+    def generate(self, prompt: str, history=None, model_id=None,  system_instruction=None,) -> str:
         """
         Sends a user prompt to local Ollama model and returns generated response text.
         
@@ -36,13 +37,28 @@ class OllamaModelClient:
 
         selected_model = model_id or self.model_name
         messages = list(history or [])
+        
+        if system_instruction:
+            messages.insert(
+                            0,
+                            {"role": "system", "content": system_instruction},
+                            )
         messages.append({"role": "user", "content": prompt})
         
         try:
+            
+            #test print
+            #print("Ollama-call starts:", self.base_url, selected_model, flush=True)
+            
             response = self._client.chat(
                 model=selected_model,
                 messages=messages,
+                think=False, 
             )
+            print("Ollaman vastaus:", repr(response.message.content), flush=True)
+            
+            #test print
+            #print("Ollama-call completed:", flush=True)
             
             # Standardize extraction from dict or chat response object
             if isinstance(response, dict):

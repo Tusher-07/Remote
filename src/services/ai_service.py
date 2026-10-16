@@ -1,3 +1,8 @@
+import traceback
+
+from numpy import number
+from app.knowledge import retrieve, get_search_resources
+from ollama import Client
 from typing import Optional
 from src.models.model_client import (
     OllamaModelClient,
@@ -6,6 +11,29 @@ from src.models.model_client import (
     ModelNotFoundError,
 )
 from src.schemas.responses import UserRequest, AIResponse
+
+from app.knowledge import retrieve, get_search_resources
+
+OLLAMA_HOST = "http://localhost:11434"
+model_client = Client(host=OLLAMA_HOST, timeout=60.0)
+
+installed = model_client.list().models
+INSTALLED_MODELS = [item.model for item in installed]
+
+if not INSTALLED_MODELS:
+    raise RuntimeError("No Ollama models are installed.")
+
+DEFAULT_MODEL_ID = INSTALLED_MODELS[0]
+
+GROUNDING_INSTRUCTION = """
+                        You are an industrial equipment manual assistant.
+                        Use only the manual excerpts supplied with the current request.
+                        Conversation history is context, not verified technical evidence.
+                        If no relevant excerpts are supplied, say that you cannot verify
+                        the answer from the manuals.
+                        Do not invent fault meanings, repair steps, or source references.
+                        Respond in plain text.
+"""
 
 
 class AIService:
@@ -48,18 +76,69 @@ class AIService:
 
             # 3. Call model client
             
-            #test print
             print("Before model call", flush=True)
             
             client = self._get_client()
-            response_text = client.generate(
-                request.message, 
-                history=history, 
-                model_id=model_id)
             
-            #test print
-            print("Model call completed", flush=True)
+            if request.message.strip().lower() != "vacon 100":
+                            return AIResponse(
+                                content="Currently, only 'Vacon 100' is supported as a device model.",
+                                success=False,
+                            )
+                            
+            
+            embedding_model, collection = get_search_resources()
+            
+            stored = collection.get(include=["metadatas"])
 
+            equipment_pairs = {
+                (metadata["manufacturer"], metadata["model"])
+                for metadata in stored["metadatas"]
+                }
+
+
+                   
+            search_question = history[0]["content"]
+            
+            evidence = retrieve(
+                question=search_question,
+                #manufacturer=history[0].get("manufacturer") if history else None,
+                manufacturer="Vacon",
+                #model=history[0].get("model") if history else None,
+                model="100",
+                embedding_model=embedding_model,
+                collection=collection,  
+                top_k=3
+            )
+         
+            for number, item in enumerate(evidence, start=1):
+                print(
+                f"\n--- Katkelma {number} ---\n"
+                f"Manuaali: {item['manual']}\n"
+                f"Sivut: {item['page_start']}–{item['page_end']}\n"
+                f"{item['text']}\n"
+    )
+
+            evidence_text = "\n\n".join(
+                f"[{number}] {item['manual']}, "
+                f"pages {item['page_start']}–{item['page_end']}\n"
+                f"{item['text']}"
+                for number, item in enumerate(evidence, start=1)
+            )
+            grounded_prompt = (
+                f"Question: {search_question}\n"
+                f"Equipment: {request.message}\n\n"
+                f"Manual excerpts:\n{evidence_text}"
+)
+
+            response_text = client.generate(
+                #request.message, 
+                grounded_prompt,
+                history=history, 
+                model_id=model_id,
+                system_instruction=GROUNDING_INSTRUCTION,
+                )
+            
             return AIResponse(
                 content=response_text,
                 success=True,
@@ -93,11 +172,13 @@ class AIService:
             )
 
         except Exception as err:
-            return AIResponse(
-                content="[Error] An unexpected application error occurred.",
-                success=False,
-                error_message=str(err),
-            )
+                import traceback
+                traceback.print_exc()
+                return AIResponse(
+                    content="[Error] An unexpected application error occurred.",
+                    success=False,
+                    error_message=str(err),
+                )
 
 
 def generate_response(user_message: str, history = None, model_id=None, service: Optional[AIService] = None) -> str:
