@@ -95,6 +95,10 @@ class AIService:
                 (metadata["manufacturer"], metadata["model"])
                 for metadata in stored["metadatas"]
                 }
+            equipment_pairs_list = [
+                f"{manu} {model}"
+                for manu, model in sorted(equipment_pairs)
+            ]
 
 
                    
