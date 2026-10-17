@@ -156,11 +156,7 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         page_ranges,
         manual_metadata,
     ) 
-    for chunk in CHUNKS:
-        if "Connected to ground" in chunk["text"]:
-            print(chunk["metadata"])
-            print(chunk["text"])
-    return 
+    
 
     embedding_model = SentenceTransformer(EMBEDDING_MODEL)
 
