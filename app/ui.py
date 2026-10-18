@@ -1,10 +1,14 @@
+
 from pathlib import Path
 
 import gradio as gr
 
-from src.services.ai_service import generate_response
-from src.services.ai_service import INSTALLED_MODELS, DEFAULT_MODEL_ID
-from app.knowledge import chunk_and_embed_pdf
+from src.services.ai_service import (
+    generate_response,
+    INSTALLED_MODELS,
+    DEFAULT_MODEL_ID,
+)
+from app.knowledge import chunk_and_embed_pdf, get_equipment_pairs
 
 
 MANUALS_DIR = Path(__file__).resolve().parent.parent / "data" / "Manuals"
@@ -53,59 +57,41 @@ def process_manual(manual_name, manufacturer, model, device_type):
 
     except Exception as error:
         return f"Processing failed: {error}", ""
-    
-def content_to_text(content):
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        return "".join(
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "text"
-        )
-
-    return ""
 
 
-def history_for_service(history):
-    converted = []
+def answer_question(message, model_id, equipment):
+    """Generate an answer using the selected equipment manual."""
+    if not message or not message.strip():
+        return "Please enter a maintenance question."
 
-    for message in history:
-        role = message.get("role")
-        text = content_to_text(message.get("content"))
+    if not equipment:
+        return "Please select equipment before asking a question."
 
-        if role in {"user", "assistant"} and text:
-            converted.append({"role": role, "content": text})
-
-    return converted
-
-def chat_reply(message, history, model_id):
-    service_history = history_for_service(history)
-    result = generate_response(
-        message, 
-        service_history, 
+    return generate_response(
+        message.strip(),
+        history=[{"role": "user", "content": message.strip()}],
         model_id=model_id,
-        )
-    return result 
-    
+        equipment=equipment,
+    )
+
 
 def build_ui() -> gr.Blocks:
     """Build the maintenance assistant interface."""
     with gr.Blocks(
         title="AI Maintenance Manual Assistant",
-    theme=gr.themes.Soft(
-        primary_hue="blue",
-        secondary_hue="slate",
-        neutral_hue="slate",
-    ),
-    css="""
-    .gradio-container {
-        max-width: 1100px !important;
-        margin: auto !important;
-    }
-    """,
-) as demo:
+        theme=gr.themes.Soft(
+            primary_hue="blue",
+            secondary_hue="slate",
+            neutral_hue="slate",
+        ),
+        css="""
+        .gradio-container {
+            max-width: 1100px !important;
+            margin: auto !important;
+        }
+        """,
+    ) as demo:
+
         gr.Markdown(
             """
             # 🔧 AI Maintenance Manual Assistant
@@ -115,13 +101,15 @@ def build_ui() -> gr.Blocks:
             """
         )
 
+        # Section 1: Process a maintenance manual
         gr.Markdown(
-    """
-    ---
-    ## 📄 1. Process a Maintenance Manual
-    Upload selection and equipment details are used to process the chosen PDF manual.
-    """
-)
+            """
+            ---
+            ## 📄 1. Process a Maintenance Manual
+
+            Select a PDF and enter its equipment details.
+            """
+        )
 
         manual_dropdown = gr.Dropdown(
             choices=get_manuals(),
@@ -134,25 +122,28 @@ def build_ui() -> gr.Blocks:
                 label="Manufacturer",
                 placeholder="e.g. VACON",
             )
+
             model_input = gr.Textbox(
                 label="Model",
                 placeholder="e.g. VACON 100",
             )
+
             device_type_input = gr.Textbox(
                 label="Device type",
                 placeholder="e.g. Variable frequency drive",
             )
 
         process_btn = gr.Button(
-    "⚙️ Process Manual",
-    variant="primary",
-    size="lg",
-)
+            "⚙️ Process Manual",
+            variant="primary",
+            size="lg",
+        )
 
         process_status = gr.Textbox(
             label="Processing status",
             interactive=False,
         )
+
         chunk_status = gr.Textbox(
             label="Processing result",
             interactive=False,
@@ -169,13 +160,16 @@ def build_ui() -> gr.Blocks:
             outputs=[process_status, chunk_status],
         )
 
+        # Section 2: Ask the maintenance assistant
         gr.Markdown(
-    """
-    ---
-    ## 🤖 2. Ask the Maintenance Assistant
-    Enter a question about equipment faults, maintenance, or troubleshooting.
-    """
-)
+            """
+            ---
+            ## 🤖 2. Ask the Maintenance Assistant
+
+            Enter a question about equipment faults, maintenance,
+            or troubleshooting.
+            """
+        )
 
         gr.Markdown(
             """
@@ -185,63 +179,64 @@ def build_ui() -> gr.Blocks:
             - What should I check before restarting the machine?
             """
         )
-        
-        # Changed to Gradios chat interface
+
         model_selector = gr.Dropdown(
             choices=INSTALLED_MODELS,
             value=DEFAULT_MODEL_ID,
             label="Model",
         )
 
-        gr.ChatInterface(
-            fn=chat_reply,
-            additional_inputs=[model_selector],
+        equipment_pairs = get_equipment_pairs()
+
+        equipment_choices = [
+            (f"{manufacturer} {model}", f"{manufacturer}|{model}")
+            for manufacturer, model in equipment_pairs
+        ]
+
+        equipment_selector = gr.Dropdown(
+            choices=equipment_choices,
+            value=equipment_choices[0][1] if equipment_choices else None,
+            label="Select equipment",
+            info="Choose the equipment whose manual you want to use.",
+            interactive=True,
         )
-        
 
-        # user_input = gr.Textbox(
-        #     lines=4,
-        #     placeholder="Enter a fault code or maintenance question...",
-        #     label="Maintenance Question",
-        #     max_length=500,
-        # )
+        user_input = gr.Textbox(
+            lines=4,
+            placeholder="Enter a fault code or maintenance question...",
+            label="Maintenance Question",
+            max_length=500,
+        )
 
-  
-        # with gr.Row():
-        #     submit_btn = gr.Button(
-        #         "🤖 Ask Assistant",
-        #         variant="primary",
-        #         size="lg",
-        #     )
-        #     clear_btn = gr.Button(
-        #         "🧹 Clear",
-        #         variant="secondary",
-        #         size="lg",
-        #     )
+        # Define the answer box before the Clear button uses it.
+        output_box = gr.Textbox(
+            lines=10,
+            label="AI Answer",
+            interactive=False,
+        )
 
-        # output_box = gr.Textbox(
-        #     lines=10,
-        #     label="AI Answer",
-        #     interactive=False,
-        # )
+        with gr.Row():
+            submit_btn = gr.Button(
+                "🤖 Ask Assistant",
+                variant="primary",
+            )
 
+            clear_btn = gr.ClearButton(
+                [user_input, output_box],
+                value="🧹 Clear",
+                variant="secondary",
+            )
 
-        # clear_btn.click(
-        #     fn=lambda: ("", ""),
-        #     inputs=None,
-        #     outputs=[user_input, output_box],
-        # )
+        submit_btn.click(
+            fn=answer_question,
+            inputs=[user_input, model_selector, equipment_selector],
+            outputs=output_box,
+        )
 
-        # submit_btn.click(
-        #     fn=generate_response,
-        #     inputs=user_input,
-        #     outputs=output_box,
-        # )
-
-        # user_input.submit(
-        #     fn=generate_response,
-        #     inputs=user_input,
-        #     outputs=output_box,
-        # )
+        user_input.submit(
+            fn=answer_question,
+            inputs=[user_input, model_selector, equipment_selector],
+            outputs=output_box,
+        )
 
     return demo
