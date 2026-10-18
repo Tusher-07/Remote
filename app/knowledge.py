@@ -18,7 +18,18 @@ def get_search_resources():
     )
 
     return embedding_model, collection
+def get_equipment_pairs():
+    """Return unique manufacturer and model pairs stored in ChromaDB."""
+    _, collection = get_search_resources()
+    stored = collection.get(include=["metadatas"])
 
+    equipment_pairs = {
+        (metadata["manufacturer"], metadata["model"])
+        for metadata in stored["metadatas"]
+        if metadata.get("manufacturer") and metadata.get("model")
+    }
+
+    return sorted(equipment_pairs)
 
 
 def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: str):
