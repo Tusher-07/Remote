@@ -121,13 +121,6 @@ It handles communication failures and missing-model errors.
 4. **Controlled Failure Handling:** Technical failures are converted into understandable application responses.
 5. **Data Validation:** Pydantic models in `src/schemas/responses.py` validate request and response structures. They do not verify the factual accuracy of generated answers.
 
-## Current Limitations and Planned Improvements
-
-- PDF processing extracts text but does not interpret diagrams or images. Important information may therefore be missing from retrieved excerpts.
-- Grounding reduces unsupported answers but does not guarantee accuracy. Answers must be evaluated&#x20;
-- Follow-up handling must ensure that retrieval uses the current question while retaining the selected equipment.
-- Source metadata is available from retrieval; consistent source references in the displayed answer still require verification.
-- RAG functionality may later be moved from `app/knowledge.py` into `src/capabilities/rag.py`, with imports and database paths updated accordingly.
 
 ## Testing
 
