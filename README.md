@@ -158,6 +158,7 @@ Refer to [`evaluation/README.md`](evaluation/README.md) for guidelines on defini
 - Grounding reduces unsupported answers but does not guarantee accuracy. Answers must be evaluated&#x20;
 - Follow-up handling must ensure that retrieval uses the current question while retaining the selected equipment.
 - Source metadata is available from retrieval; consistent source references in the displayed answer still require verification.
+- The model may misinterpret a table extracted from a PDF even when the correct information is included in the retrieved excerpts. A source citation alone does not guarantee a correct answer.
 
 ## Future improvements
 
