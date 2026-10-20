@@ -154,8 +154,11 @@ Refer to [`evaluation/README.md`](evaluation/README.md) for guidelines on defini
 
 ## Known limitations
 
-- Highlight known system limitations, unhandled edge cases, or boundaries of current capabilities.
+- PDF processing extracts text but does not interpret diagrams or images. Important information may therefore be missing from retrieved excerpts.
+- Grounding reduces unsupported answers but does not guarantee accuracy. Answers must be evaluated&#x20;
+- Follow-up handling must ensure that retrieval uses the current question while retaining the selected equipment.
+- Source metadata is available from retrieval; consistent source references in the displayed answer still require verification.
 
 ## Future improvements
 
-- List planned feature enhancements, architectural refactorings, or future capabilities.
+- RAG functionality may later be moved from `app/knowledge.py` into `src/capabilities/rag.py`, with imports and database paths updated accordingly
