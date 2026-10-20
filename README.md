@@ -49,8 +49,11 @@ Ollama (Local LLM Server)
 
 ## Model
 
-- **Model used:** e.g., `llama3.2` (or specified local Ollama model)
-- **Selection rationale:** Why was this specific model chosen for your project (e.g., lightweight, performance, context size)?
+## Model
+
+- **Model used:** `qwen3.5:9b`, running locally through Ollama.
+- **Selection rationale:** The model is used to interpret the user’s question and generate answers based on retrieved maintenance manual excerpts. Running it locally allows the application to operate without an external LLM API. Smaller Qwen models were also tested for faster responses. The 9B model requires more memory and can respond slowly when running partly on the CPU.
+- **Grounding:** Relevant manual excerpts are included in the prompt, and the model is instructed to use only that evidence. If the excerpts do not support an answer, it should explain that the available information is insufficient. This reduces unsupported answers but does not guarantee their accuracy.
 
 ## Additional AI capability
 
