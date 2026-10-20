@@ -2,6 +2,7 @@ from pathlib import Path
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import chromadb
+import shutil
 
 from functools import lru_cache
 
@@ -18,6 +19,7 @@ def get_search_resources():
     )
 
     return embedding_model, collection
+
 def get_equipment_pairs():
     """Return unique manufacturer and model pairs stored in ChromaDB."""
     _, collection = get_search_resources()
@@ -153,7 +155,7 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
 
             start = end - overlap
             number += 1
-
+        
         return chunks
 
     manual_metadata = {
@@ -162,6 +164,7 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         "model": model,
         "device_type": device_type,
     }
+    
     CHUNKS = make_chunks(
         manual_text,
         page_ranges,
@@ -193,6 +196,18 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         metadatas=[chunk["metadata"] for chunk in CHUNKS],
     )
 
+   
+    #Move the processed PDF to the "Processed manuals" directory
+    sourcePath = Path(pdf_path)
+    processedPath  = Path("data/Processed manuals") / sourcePath.name
+    processedPath.parent.mkdir(parents=True, exist_ok=True)
+    #If already exists, do not overwrite, just print a message
+    if not processedPath.exists():
+        shutil.move(sourcePath, processedPath)
+    else:
+        print(f"File already exists in the 'Processed manuals' directory: {sourcePath.name}. Not moving the file.")
+    
+    
     return len(CHUNKS), True
 
 def retrieve(

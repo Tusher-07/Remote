@@ -29,13 +29,15 @@ def get_manuals():
 def process_manual(manual_name, manufacturer, model, device_type):
     """Validate the form and process the selected manual."""
     if not manual_name:
-        return "Please select a PDF manual.", ""
+        #return "Please select a PDF manual.", ""
+        return "Please select a PDF manual.", "", gr.skip(),gr.skip()
 
     if not all(
         value and value.strip()
         for value in (manufacturer, model, device_type)
     ):
-        return "Please fill in all three metadata fields.", ""
+        #return "Please fill in all three metadata fields.", ""
+        return "Please fill in all three metadata fields.", "", gr.skip(), gr.skip()
 
     pdf_path = MANUALS_DIR / manual_name
 
@@ -48,16 +50,30 @@ def process_manual(manual_name, manufacturer, model, device_type):
         )
 
         if success:
+            manuals = get_manuals()
+            equipment_choices = [
+                (f"{manu} {model}", f"{manu}|{model}")
+                    for manu, model in get_equipment_pairs()
+                    ]
             return (
                 f"Successfully processed: {manual_name}",
                 f"Chunks processed: {chunks}",
-            )
-
-        return "Processing was not successful.", ""
+                gr.Dropdown(
+                    choices=manuals,
+                    value=manuals[0] if manuals else None,
+                    ),
+                gr.Dropdown(
+                    choices=equipment_choices,
+                    value=f"{manufacturer.strip()}|{model.strip()}",
+                    ),
+            ) 
+        
+        #return "Processing was not successful.", ""
+        return "Processing was not successful.", "", gr.skip(), gr.skip()
 
     except Exception as error:
-        return f"Processing failed: {error}", ""
-
+        #return f"Processing failed: {error}", ""
+        return f"Processing failed: {error}", "", gr.skip(), gr.skip()
 
 def answer_question(message, model_id, equipment):
     """Generate an answer using the selected equipment manual."""
@@ -110,9 +126,11 @@ def build_ui() -> gr.Blocks:
             Select a PDF and enter its equipment details.
             """
         )
-
+        manuals = get_manuals()
+        
         manual_dropdown = gr.Dropdown(
-            choices=get_manuals(),
+            choices=manuals,
+            value=manuals[0] if manuals else None,
             label="Select PDF manual",
             interactive=True,
         )
@@ -149,16 +167,7 @@ def build_ui() -> gr.Blocks:
             interactive=False,
         )
 
-        process_btn.click(
-            fn=process_manual,
-            inputs=[
-                manual_dropdown,
-                manufacturer_input,
-                model_input,
-                device_type_input,
-            ],
-            outputs=[process_status, chunk_status],
-        )
+        
 
         # Section 2: Ask the maintenance assistant
         gr.Markdown(
@@ -199,6 +208,22 @@ def build_ui() -> gr.Blocks:
             label="Select equipment",
             info="Choose the equipment whose manual you want to use.",
             interactive=True,
+        )
+        
+        process_btn.click(
+            fn=process_manual,
+            inputs=[
+                manual_dropdown,
+                manufacturer_input,
+                model_input,
+                device_type_input,
+            ],
+            outputs=[
+                process_status,
+                chunk_status,
+                manual_dropdown,
+                equipment_selector,
+                ],
         )
 
         user_input = gr.Textbox(
