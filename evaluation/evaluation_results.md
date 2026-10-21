@@ -3,59 +3,73 @@
 ## Summary Overview
 
 - **Date of Evaluation:** 2026-10-21
-- **Component Evaluated:** Application AI service (`src/services/ai_service.py`)
-- **Model Evaluated:** No live language model; model responses and retrieval results were mocked.
-- **Test Cases Collected:** 15
-- **Total Test Cases Executed:** 14
-- **Passed:** 14
+- **Components Evaluated:** AI service, manual ingestion and retrieval, and model-client message construction.
+- **Model Evaluated:** No live language model. Model responses, embeddings, and database operations were replaced with test doubles.
+- **Test Cases Collected:** 25
+- **Total Test Cases Executed:** 24
+- **Passed:** 24
 - **Failed:** 0
 - **Skipped:** 1
 - **Pass Rate:** 100% of executed tests
-- **Execution Time:** 22.21 seconds
+
+Results were collected from separate test runs.
 
 ## Performance by Category
 
-| Category | Executed Cases | Passed | Failed | Pass Rate |
+| Test Suite | Executed Cases | Passed | Failed | Skipped |
 | :--- | :---: | :---: | :---: | :---: |
-| Configuration | 1 | 1 | 0 | 100% |
-| Successful Request Processing | 2 | 2 | 0 | 100% |
-| Follow-up Query Handling | 1 | 1 | 0 | 100% |
-| Validation and Failure / Edge Cases | 10 | 10 | 0 | 100% |
-
-The dropdown integration test was skipped and is excluded from the pass rate.
+| AI Service | 14 | 14 | 0 | 1 |
+| Manual Ingestion and Retrieval | 9 | 9 | 0 | 0 |
+| Model-Client History Handling | 1 | 1 | 0 | 0 |
+| **Total** | **24** | **24** | **0** | **1** |
 
 ## Key Findings & Failure Analysis
 
 ### What worked well
 
-- Equipment details and the question were passed correctly to retrieval.
-- Retrieved evidence and source metadata were included in the model prompt.
-- Conversation history, model selection, and grounding instructions were forwarded correctly.
+- Questions and equipment details were passed correctly to retrieval.
+- Retrieved excerpts, source metadata, conversation history, grounding instructions, and model selection were forwarded correctly.
 - Retrieval used the latest question in the follow-up test.
-- Empty input and missing equipment were rejected before retrieval or inference.
+- Empty input and missing equipment were rejected.
 - Empty retrieval results prevented a model call.
-- Simulated retrieval failures, Ollama connection errors, missing models, and general model-client errors produced controlled responses.
+- Simulated retrieval and model-client failures produced controlled responses.
+- Invalid file extensions, missing files, corrupted PDFs, and PDFs without readable text were handled.
+- Chunk metadata preserved original page numbers, including when blank pages were skipped.
+- Retrieval applied manufacturer and model filters and returned source metadata.
+- Empty collections returned an empty result without querying Chroma.
+- Model-client messages preserved conversation order without modifying the original history.
 
-### Evaluation limitations
+### Issues resolved during testing
 
-These tests verify application logic using test doubles. They do not measure actual retrieval relevance, model accuracy, inference speed, or PDF processing.
+Several service tests still used the previous text-based equipment input. They were updated to pass the equipment selection separately.
 
-The unsupported-device test needs review: its original implementation omitted the equipment argument, so it may verify missing equipment rather than rejection of an unknown device.
+A temporary-directory permission issue prevented PDF tests from starting. The tests were rerun using a dedicated temporary directory. The ingestion fixture also changes the working directory to isolate relative file operations from the project.
 
-The skipped dropdown test still contains an outdated placeholder. The dropdown now exists, but its integration has not been verified by this test.
+The empty-collection test identified a missing guard in retrieval. A check was added to return an empty list before embedding generation or database queries when the collection contains no chunks.
 
-### Observed model failure in a separate manual check
+### Remaining test limitations
 
-In a previous live test, the model incorrectly stated that fault code A20 had no defined meaning, although the retrieved excerpt included “A20 Voltage drop.” The model cited the relevant excerpt but misinterpreted its contents.
+- The dropdown integration test is still skipped. The dropdown exists, but this placeholder does not verify its operation.
+- The unsupported-device test needs review: its original implementation omitted the equipment argument and may only verify missing equipment.
+- File movement, automatic destination-folder creation, filename conflicts, and dropdown refreshes do not yet have dedicated automated assertions.
+- These tests do not measure real retrieval relevance, language-model accuracy, or inference performance.
 
-This demonstrates that correct retrieval and source citations do not guarantee a factually correct answer. This manual observation is not included in the automated test counts above.
+### Observed failure in a separate live model test
+
+During a previous test with `qwen3.5:9b`, the retrieved Rittal manual excerpt contained:
+
+> A20 Voltage drop Error display not shown Event is stored in the log file
+
+The model nevertheless stated that A20 had no defined meaning, despite citing the correct excerpt and page.
+
+Retrieval found the relevant information, but the model misinterpreted the extracted table. This demonstrates that a source citation alone does not guarantee a correct answer. This observation is separate from the automated test counts above.
 
 ## Action Items & Improvements
 
 - [ ] Update the unsupported-device test to supply an explicit unknown equipment selection.
 - [ ] Replace the skipped dropdown placeholder with an actual integration test.
-- [ ] Resolve the temporary-directory permission issue and rerun the PDF-processing tests.
-- [ ] Test automatic folder creation, processed-file movement, and filename conflicts.
+- [ ] Add tests for automatic folder creation, processed-file movement, and filename conflicts.
 - [ ] Verify that both dropdown menus refresh after successful processing.
-- [ ] Evaluate real retrieval and answer quality against known manual passages.
-- [ ] Investigate incorrect interpretation of extracted PDF tables.
+- [ ] Evaluate retrieval and generated answers against known passages in the original manuals.
+- [ ] Investigate incorrect interpretation of tables extracted from PDFs.
+- [ ] Add functionality for correcting stored manual metadata and deleting indexed manuals.
