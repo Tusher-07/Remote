@@ -218,6 +218,8 @@ def retrieve(
     collection, 
     top_k=3
     ):
+    if collection.count() == 0:
+        return []
     
     query_vector = embedding_model.encode(
         [question],

@@ -6,6 +6,7 @@ from app import knowledge
 
 @pytest.fixture
 def ingest(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     pdf = tmp_path / "manual.pdf"
     pdf.write_bytes(b"test fixture")
     reader = MagicMock()
@@ -83,7 +84,7 @@ def test_no_matching_documents():
         ("ids", "documents", "metadatas", "distances")}
     assert knowledge.retrieve("question", "Unknown", "X", encoder, collection) == []
 
-@pytest.mark.xfail(strict=True, reason="Empty collection currently queries with n_results=0.")
+
 def test_empty_collection_returns_without_query():
     encoder, collection = MagicMock(), MagicMock()
     encoder.encode.return_value.tolist.return_value = [[0.1]]
