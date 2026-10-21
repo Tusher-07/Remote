@@ -5,35 +5,54 @@
 - Budhathoki Tika (tika.budhathoki@student.hamk.fi)
 - Tusher Monjurul (monjurul.tusher@student.hamk.fi)
 - Amil Mahfuj (mahfuj.amil@student.hamk.fi)
-- Petri Suopanki (petri.suopanki@student.hamk.fi )
+- Petri Suopanki (petri.suopanki@student.hamk.fi)
 
 ## Problem
 
 ### Intended users
-The primary users are industrial maintenance personnel and equipment operators who need instructions related to equipment fault codes.
+
+The application is intended for industrial maintenance personnel and equipment operators who need information about equipment faults, operation, and maintenance.
 
 ### Problem statement
-Finding troubleshooting instructions in lengthy, equipment-specific manuals takes time. Paper manuals for older equipment may also be missing or unavailable. The application helps users find instructions for the correct equipment and fault code in stored digital manuals and presents them as clear steps.
+
+Finding relevant instructions in lengthy, equipment-specific manuals can be time-consuming. Paper manuals may also be missing or unavailable. The application helps users search stored digital manuals and obtain answers with source references.
 
 ### Why AI is appropriate
-Traditional search can locate a fault code, but an LLM enables natural-language queries, clarifying questions, and the combination of information from different manual sections into an understandable response. Retrieval-Augmented Generation (RAG) grounds the response in the content of the selected manuals.
+
+A language model supports natural-language questions and can combine information from multiple manual excerpts into an understandable answer. Retrieval-Augmented Generation (RAG) supplies equipment-specific evidence instead of relying only on the model’s general knowledge.
 
 ## Solution
-We will develop an AI assistant that retrieves troubleshooting and repair instructions from stored operation and maintenance manuals. It presents numbered steps, source references, and the safety requirements stated in the manual.
-The prototype will use approximately 2–5 example manuals, a Gradio user interface, and an LLM running locally through Ollama. Automated web search is outside the scope of the first version.
-The application will be evaluated using demonstration questions to assess answer accuracy, source references, and the handling of missing information.
+
+The prototype combines a Gradio interface, locally stored PDF manuals, a persistent Chroma vector database, and a language model running through Ollama.
+
+Users can process manuals, select equipment, and ask questions. The application retrieves relevant excerpts from the selected equipment’s manuals and supplies them to the model.
+
+Automated web search is outside the scope of the current version. Generated answers require verification against the original manual before being used for maintenance decisions.
 
 ## Main user workflow
 
-1. **User Input:** The user enters a fault code and equipment details through the Gradio interface.
-2. **Processing & Guardrails:** The service layer validates the input, requests additional details when needed, and retrieves relevant sections from the correct manual. The response is restricted to the retrieved information.
-3. **Model Response:** The LLM running through Ollama turns the retrieved instructions into a numbered list of steps, displayed in the interface with source references. If insufficient information is found, the application explains this and advises the user to look for the correct manual on the manufacturer’s website.
+### Processing a manual
 
-# Architecture Documentation
+1. Place a PDF in `data/Manuals`.
+2. Select the PDF in the interface.
+3. Enter the manufacturer, equipment model, and device type.
+4. Select **Process Manual**.
+5. The application extracts text, creates chunks, generates embeddings, and stores the results in Chroma.
+6. After successful indexing, the application attempts to move the PDF to `data/Processed manuals`. The folder is created if necessary. An existing file with the same name is not overwritten.
+7. The PDF and equipment dropdown menus are refreshed.
 
-This document describes the architecture of the AI Maintenance Manual Assistant. The application uses Retrieval-Augmented Generation (RAG) to answer equipment questions using locally stored maintenance manuals.
+If a filename conflict prevents the move, the source PDF remains in `data/Manuals` and remains available in the PDF dropdown.
 
-## Application Architecture
+### Asking a question
+
+1. Select an installed Ollama model.
+2. Select equipment from the devices represented in the indexed manuals.
+3. Enter a fault code or maintenance question.
+4. The service validates the input and retrieves relevant excerpts filtered by manufacturer and equipment model.
+5. The model receives the question, retrieved excerpts, and grounding instructions.
+6. The interface displays the answer. The model is instructed to cite supporting excerpts and acknowledge insufficient evidence.
+
+## Architecture
 
 ```text
 User
@@ -46,30 +65,40 @@ Application / AI Service (src/services/ai_service.py)
   │   BGE-M3 Query Embedding
   │     ↓
   │   Chroma Vector Database
-  │   Filter by manufacturer and model
+  │   Filter by manufacturer and equipment model
   │     ↓
-  │   Relevant manual excerpts and source metadata
+  │   Relevant excerpts and source metadata
   │
   └── Grounded Prompt
-        Question + conversation history + manual excerpts
+        Question + supplied history + manual excerpts
         ↓
       Model Client (src/models/model_client.py)
         ↓
       Ollama (Local Inference Server)
         ↓
-      Qwen3.5:9b
+      User-selected model, e.g. qwen3.5:9b
         ↓
       Response returned through the service to the UI
 ```
 
-## Manual Processing
+Model requests pass through the application service. The UI must not communicate directly with the model client or Ollama.
 
-Manual ingestion is separate from answering questions. Each PDF is processed with equipment metadata supplied by the user.
+### Component responsibilities
+
+| Component | Responsibility |
+| :--- | :--- |
+| `app/ui.py` | Collects user input, handles selections, and displays processing results and answers. |
+| `src/services/ai_service.py` | Validates requests, coordinates retrieval, constructs grounded prompts, and handles application errors. |
+| `app/knowledge.py` | Extracts PDF text, creates chunks and embeddings, manages manual indexing, and retrieves relevant excerpts. |
+| `src/models/model_client.py` | Communicates with Ollama and translates model-client failures into application exceptions. |
+| `src/schemas/responses.py` | Defines Pydantic request and response structures. |
+
+Pydantic validates data structures, not the factual accuracy of generated answers.
+
+## Manual processing and storage
 
 ```text
-PDF Manual + Manufacturer + Model + Device Type
-  ↓
-Manual Processing (app/knowledge.py)
+PDF + Manufacturer + Model + Device Type
   ↓
 Text Extraction with pypdf
   ↓
@@ -79,87 +108,163 @@ Embeddings with BAAI/bge-m3
   ↓
 Persistent Chroma Collection
 maintenance_manuals_bge_m3
+  ↓
+Attempt to move PDF to Processed manuals
+  ↓
+Refresh UI dropdowns
 ```
 
-Each stored chunk contains its text and metadata identifying the manual, manufacturer, equipment model, device type, and page range. Chroma stores the data under `data/chroma`, allowing it to remain available after the application restarts.
+Each chunk stores:
 
-The same embedding model is used for both manual chunks and search queries.
+- Extracted text
+- Manual filename
+- Manufacturer
+- Equipment model
+- Device type
+- Start and end page numbers
 
-## Component Responsibilities
+Chroma data is stored under `data/chroma` and remains available after the application restarts. Moving a PDF does not remove its indexed content.
 
-### User Interface
+## Models
 
-`app/ui.py` provides the Gradio interface for manual processing and questions. It collects user input and displays processing results and assistant responses.
+### Response model
 
-### Application Service
+The user can select from the Ollama models installed on the local machine. Tested models include `qwen3.5:2b`, `qwen3.5:4b`, and `qwen3.5:9b`.
 
-`src/services/ai_service.py` coordinates question handling. It validates input, obtains equipment details, requests relevant manual excerpts, and constructs the grounded prompt before calling the model client.
+Local inference avoids dependence on an external LLM API. Model selection allows users to compare response speed and quality on their hardware. The 9B model can respond slowly when running partly on the CPU.
 
-It also converts failures into user-facing messages.
+### Embedding model
 
-### Manual Processing and Retrieval
+`BAAI/bge-m3` generates embeddings for both manual chunks and search queries. It is independent of the response-model dropdown.
 
-`app/knowledge.py` contains PDF ingestion, chunking, embedding generation, database access, and retrieval.
+The initial embedding model, `sentence-transformers/all-MiniLM-L6-v2`, had an input limit that was too short for the tested chunks. BGE-M3 accommodated their length.
 
-Retrieval filters the stored chunks by manufacturer and equipment model, then searches for text relevant to the question. Results include the manual filename and page range.
+## Additional AI capability: RAG
 
-### Model Client
+RAG is implemented and used to retrieve information from indexed manuals.
 
-`src/models/model_client.py` manages communication with Ollama. It passes the selected model, system instruction, conversation history, and grounded question to the local server.
+Search results are filtered by manufacturer and equipment model. The retrieved excerpts are included in the prompt, together with instructions to use only the supplied evidence and to acknowledge missing information.
 
-It handles communication failures and missing-model errors.
-
-### Local Models
-
-`BAAI/bge-m3` generates embeddings for semantic retrieval. `qwen3.5:9b`, served through Ollama, generates answers from the retrieved excerpts. These models perform different tasks.
-
-## Core Design Rules
-
-1. **UI Isolation:** The UI must not communicate directly with the model client or Ollama. Model requests pass through the application service.
-2. **Evidence-Based Responses:** The model is instructed to answer using only the supplied manual excerpts. Conversation history provides context but is not verified technical evidence.
-3. **Equipment Filtering:** Retrieval must use the selected equipment’s manufacturer and model to avoid mixing instructions from different devices.
-4. **Controlled Failure Handling:** Technical failures are converted into understandable application responses.
-5. **Data Validation:** Pydantic models in `src/schemas/responses.py` validate request and response structures. They do not verify the factual accuracy of generated answers.
-
-
-## Testing
-
-Automated tests cover input validation, retrieval parameters, evidence forwarding, conversation-history ordering, PDF processing, metadata preservation, and error handling.
-
-Known incomplete features are marked explicitly in the test suite. Answer quality is evaluated separately against the original manuals using `evaluation/manual_rag_checks.md`.
-
-## Model
-
-- **Model used:** `qwen3.5:9b`, running locally through Ollama.
-- **Selection rationale:** The model is used to interpret the user’s question and generate answers based on retrieved maintenance manual excerpts. Running it locally allows the application to operate without an external LLM API. Smaller Qwen models were also tested for faster responses. The 9B model requires more memory and can respond slowly when running partly on the CPU.
-- **Grounding:** Relevant manual excerpts are included in the prompt, and the model is instructed to use only that evidence. If the excerpts do not support an answer, it should explain that the available information is insufficient. This reduces unsupported answers but does not guarantee their accuracy.
-
-## Additional AI capability
-
-RAG (Retrieval-Augmented Generation)
-
-### Capability justification
-
-RAG retrieves relevant instructions from equipment manuals and provides them as context for the LLM. This helps the assistant give equipment-specific troubleshooting steps with source references, reducing the risk of unsupported advice.
+Grounding reduces unsupported answers but does not guarantee correctness. Conversation history provides context and should not be treated as verified technical evidence.
 
 ## Setup
 
+### Requirements
 
+- Conda
+- Ollama installed and running locally
+- At least one installed Ollama response model
+- PDF manuals to process
 
-## Evaluation
+### Prepare the Python environment
 
-Describe your evaluation methodology and summarize key results. Starter test cases can be found in [`evaluation/test_cases.json`](evaluation/test_cases.json).
+From the repository root, create the environment using the supplied definition:
 
-Refer to [`evaluation/README.md`](evaluation/README.md) for guidelines on defining success, edge cases, and failure scenarios.
+```powershell
+conda env create -f environment.yml
+```
+
+Activate the environment using the name specified in `environment.yml`. The development environment used by the team is named `dev-ai`:
+
+```powershell
+conda activate dev-ai
+```
+
+If the environment already exists, activate it instead of creating it again.
+
+### Prepare Ollama
+
+Install a model suitable for the available hardware, for example:
+
+```powershell
+ollama pull qwen3.5:9b
+```
+
+Check installed models:
+
+```powershell
+ollama list
+```
+
+Ollama must be available at the configured address, normally `http://localhost:11434`.
+
+### Start the application
+
+Place manuals in `data/Manuals`, then run from the repository root:
+
+```powershell
+python -m app.main
+```
+
+Open the local URL printed in the terminal.
+
+The embedding model may require an internet download on first use. Subsequent runs can load its cached files from disk. Processing a new manual still requires embedding computation.
+
+Fresh installation with an empty or missing Chroma collection should be verified separately; the current setup has primarily been tested with an existing development database.
+
+## Testing and evaluation
+
+Automated tests verify application logic using test doubles for model responses, embeddings, and database operations. They do not measure live model accuracy or real retrieval quality.
+
+Run the test suites from the repository root:
+
+```powershell
+python -m pytest tests/test_ai_service.py tests/test_knowledge.py tests/test_model_history.py -v
+```
+
+If pytest is missing from the active environment:
+
+```powershell
+python -m pip install pytest
+```
+
+If the default pytest temporary directory produces a permission error, use a dedicated test directory:
+
+```powershell
+python -m pytest tests/test_ai_service.py tests/test_knowledge.py tests/test_model_history.py -v --basetemp="$env:TEMP\manual-assistant-tests"
+```
+
+The `--basetemp` directory is disposable: pytest may clear its contents. Do not store manuals or other important files there.
+
+### Latest automated results
+
+On **2026-10-21**, separate test runs reported:
+
+| Test suite | Passed | Failed | Skipped |
+| :--- | :---: | :---: | :---: |
+| AI service | 14 | 0 | 1 |
+| Manual ingestion and retrieval | 9 | 0 | 0 |
+| Model-client history handling | 1 | 0 | 0 |
+| **Total** | **24** | **0** | **1** |
+
+The dropdown integration placeholder remains skipped. The unsupported-device test also needs review to ensure it tests an explicit unknown selection rather than missing equipment.
+
+See [evaluation results](evaluation/evaluation_results.md), [manual RAG checks](evaluation/manual_rag_checks.md), and [test instructions](tests/README.md).
+
+### Live answer-quality observation
+
+In a separate test with `qwen3.5:9b`, retrieval found the Rittal manual row defining A20 as “Voltage drop.” The model cited the correct excerpt but incorrectly claimed that the code had no defined meaning.
+
+This case shows that correct retrieval and a source citation do not guarantee a correct interpretation. It is not included in the automated test totals.
 
 ## Known limitations
 
-- PDF processing extracts text but does not interpret diagrams or images. Important information may therefore be missing from retrieved excerpts.
-- Grounding reduces unsupported answers but does not guarantee accuracy. Answers must be evaluated&#x20;
-- Follow-up handling must ensure that retrieval uses the current question while retaining the selected equipment.
-- Source metadata is available from retrieval; consistent source references in the displayed answer still require verification.
-- The model may misinterpret a table extracted from a PDF even when the correct information is included in the retrieved excerpts. A source citation alone does not guarantee a correct answer.
+- PDF processing extracts text but does not interpret diagrams or images.
+- Extracted tables may lose their layout, and the model may misinterpret them even when the required information is present.
+- Source references and generated answers must be checked against the original manuals.
+- The service passed a test confirming that retrieval uses the latest question. This does not establish that the UI maintains a complete multi-turn conversation history.
+- Stored manual metadata cannot yet be edited through the UI. A misspelled manufacturer or model remains in the equipment list.
+- Indexed manuals cannot yet be deleted through the UI. Moving or deleting a PDF does not delete its Chroma records.
+- The duplicate-filename check occurs after indexing, so it does not prevent repeated embedding computation.
+- Automatic folder creation, file movement, filename conflicts, and dropdown refreshes do not yet have dedicated automated assertions.
+- Large response models and embedding computation can be slow on limited hardware.
 
 ## Future improvements
 
-- RAG functionality may later be moved from `app/knowledge.py` into `src/capabilities/rag.py`, with imports and database paths updated accordingly
+- Add UI actions for correcting manual metadata and deleting indexed manuals.
+- Add automated tests for the complete manual-processing and dropdown-update workflow.
+- Improve extraction and interpretation of tables and diagrams.
+- Evaluate retrieval relevance and answer accuracy using documented questions and verified source passages.
+- Improve handling of exact fault-code searches.
+- Verify fresh installation and startup with no indexed manuals.
+- Consider moving RAG functionality from `app/knowledge.py` to `src/capabilities/rag.py`, updating imports and storage paths accordingly.
