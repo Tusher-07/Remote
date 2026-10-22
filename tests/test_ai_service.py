@@ -39,8 +39,12 @@ def test_empty_input_validation(case, message):
     case.resources.assert_not_called()
 
 def test_missing_device(case):
-    response = case.service.process_message("What does this fault mean?")
-    assert "manufacturer and model" in response.content
+    response = case.service.process_message(
+        "What does this fault mean?",
+        history=case.history,
+    )
+    assert response.success is False
+    assert "Please select equipment" in response.content
     case.retrieve.assert_not_called()
     case.client.generate.assert_not_called()
 
@@ -51,14 +55,33 @@ def test_unsupported_device(case):
     case.client.generate.assert_not_called()
 
 def test_device_and_question_reach_retrieval(case):
-    case.service.process_message(" VACON 100 ", history=case.history)
+    question = "How do I inspect the device?"
+
+    case.service.process_message(
+        question,
+        history=case.history,
+        equipment="Vacon|100",
+    )
+
     case.retrieve.assert_called_once_with(
-        question=case.history[0]["content"], manufacturer="Vacon", model="100",
-        embedding_model=case.embedding, collection=case.collection, top_k=3)
+        question=question,
+        manufacturer="Vacon",
+        model="100",
+        embedding_model=case.embedding,
+        collection=case.collection,
+        top_k=3,
+    )
 
 def test_successful_response_and_grounding(case):
-    result = case.module.generate_response("Vacon 100", history=case.history,
-        model_id="selected-model", service=case.service)
+    question = case.history[0]["content"]
+
+    result = case.module.generate_response(
+    question,
+    history=case.history,
+    equipment="Vacon|100",
+    model_id="selected-model",
+    service=case.service,
+)
     assert result == "Test answer."
     case.client.generate.assert_called_once()
     args, kwargs = case.client.generate.call_args
@@ -77,31 +100,47 @@ def test_successful_response_and_grounding(case):
 ])
 def test_model_error_handling(case, error_type, expected):
     case.client.generate.side_effect = getattr(case.module, error_type)("test failure")
-    response = case.service.process_message("Vacon 100", history=case.history)
+    response = case.service.process_message(
+    "How do I inspect the device?",
+    history=case.history,
+    equipment="Vacon|100",
+    )
     assert response.success is False
     assert expected in response.content
     assert "test failure" in response.error_message
 
 def test_retrieval_error(case):
     case.retrieve.side_effect = RuntimeError("database unavailable")
-    response = case.service.process_message("Vacon 100", history=case.history)
+    response = case.service.process_message(
+        "How do I inspect the device?",
+    history=case.history,
+    equipment="Vacon|100",
+    )
     assert response.success is False
     assert "database unavailable" in response.error_message
     case.client.generate.assert_not_called()
 
-@pytest.mark.xfail(strict=True, reason="Follow-up is currently treated as a device name.")
+
 def test_followup_uses_latest_question(case):
     history = case.history + [
         {"role": "user", "content": "Vacon 100"},
         {"role": "assistant", "content": "Previous grounded answer."}]
-    case.service.process_message("What should I check next?", history=history)
+    case.service.process_message(
+        "What should I check next?",
+        history=history,
+        equipment="Vacon|100",
+    )
     case.retrieve.assert_called_once()
     assert case.retrieve.call_args.kwargs["question"] == "What should I check next?"
 
-@pytest.mark.xfail(strict=True, reason="Empty evidence currently still reaches the model.")
+
 def test_no_evidence_notice_without_model_call(case):
     case.retrieve.return_value = []
-    response = case.service.process_message("Vacon 100", history=case.history)
+    response = case.service.process_message(
+    "How do I inspect the device?",
+    history=case.history,
+    equipment="Vacon|100",
+    )
     case.client.generate.assert_not_called()
     assert response.content.strip()
     assert response.content != "Test answer."

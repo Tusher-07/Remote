@@ -34,6 +34,13 @@ If no relevant excerpts are supplied, say that you cannot verify
 the answer from the manuals.
 Do not invent fault meanings, repair steps, or source references.
 Respond in plain text.
+Cite the excerpt numbers supporting your answer,
+for example [1] or [2].
+After your answer, include a "Sources" section.
+For each excerpt used, provide its number, manual filename, page range,
+and a short exact quote supporting the answer.
+Only cite excerpts that support your answer.
+If none of the excerpts supports an answer, state that clearly.
 """
 
 

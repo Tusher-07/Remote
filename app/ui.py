@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 import gradio as gr
@@ -27,15 +26,25 @@ def get_manuals():
 
 
 def process_manual(manual_name, manufacturer, model, device_type):
-    """Validate the form and process the selected manual."""
+    """Validate and process a selected manual."""
     if not manual_name:
-        return "Please select a PDF manual.", ""
+        return (
+            "Please select a PDF manual.",
+            "",
+            gr.skip(),
+            gr.skip(),
+        )
 
     if not all(
-        value and value.strip()
+        isinstance(value, str) and value.strip()
         for value in (manufacturer, model, device_type)
     ):
-        return "Please fill in all three metadata fields.", ""
+        return (
+            "Please fill in all three metadata fields.",
+            "",
+            gr.skip(),
+            gr.skip(),
+        )
 
     pdf_path = MANUALS_DIR / manual_name
 
@@ -47,16 +56,58 @@ def process_manual(manual_name, manufacturer, model, device_type):
             device_type.strip(),
         )
 
-        if success:
+        if not success:
             return (
-                f"Successfully processed: {manual_name}",
-                f"Chunks processed: {chunks}",
+                "Processing was not successful.",
+                "",
+                gr.skip(),
+                gr.skip(),
             )
 
-        return "Processing was not successful.", ""
+        manuals = get_manuals()
+
+        equipment_choices = [
+            (f"{manu} {equip_model}", f"{manu}|{equip_model}")
+            for manu, equip_model in get_equipment_pairs()
+        ]
+
+        selected_equipment = (
+            f"{manufacturer.strip()}|{model.strip()}"
+        )
+
+        equipment_value = (
+            selected_equipment
+            if any(
+                value == selected_equipment
+                for _, value in equipment_choices
+            )
+            else (
+                equipment_choices[0][1]
+                if equipment_choices
+                else None
+            )
+        )
+
+        return (
+            f"Successfully processed: {manual_name}",
+            f"Chunks processed: {chunks}",
+            gr.Dropdown(
+                choices=manuals,
+                value=manuals[0] if manuals else None,
+            ),
+            gr.Dropdown(
+                choices=equipment_choices,
+                value=equipment_value,
+            ),
+        )
 
     except Exception as error:
-        return f"Processing failed: {error}", ""
+        return (
+            f"Processing failed: {error}",
+            "",
+            gr.skip(),
+            gr.skip(),
+        )
 
 
 def answer_question(message, model_id, equipment):
@@ -149,17 +200,6 @@ def build_ui() -> gr.Blocks:
             interactive=False,
         )
 
-        process_btn.click(
-            fn=process_manual,
-            inputs=[
-                manual_dropdown,
-                manufacturer_input,
-                model_input,
-                device_type_input,
-            ],
-            outputs=[process_status, chunk_status],
-        )
-
         # Section 2: Ask the maintenance assistant
         gr.Markdown(
             """
@@ -201,6 +241,23 @@ def build_ui() -> gr.Blocks:
             interactive=True,
         )
 
+        # Refresh both dropdowns after processing.
+        process_btn.click(
+            fn=process_manual,
+            inputs=[
+                manual_dropdown,
+                manufacturer_input,
+                model_input,
+                device_type_input,
+            ],
+            outputs=[
+                process_status,
+                chunk_status,
+                manual_dropdown,
+                equipment_selector,
+            ],
+        )
+
         user_input = gr.Textbox(
             lines=4,
             placeholder="Enter a fault code or maintenance question...",
@@ -208,7 +265,6 @@ def build_ui() -> gr.Blocks:
             max_length=500,
         )
 
-        # Define the answer box before the Clear button uses it.
         output_box = gr.Textbox(
             lines=10,
             label="AI Answer",
