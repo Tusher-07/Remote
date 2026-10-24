@@ -176,7 +176,7 @@ def build_ui() -> gr.Blocks:
 
             model_input = gr.Textbox(
                 label="Model",
-                placeholder="e.g. VACON 100",
+                placeholder="e.g. 100 or NXS",
             )
 
             device_type_input = gr.Textbox(
