@@ -1,3 +1,4 @@
+from typing import Optional
 import ollama
 from src.config import config
 
