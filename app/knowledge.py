@@ -34,10 +34,10 @@ def get_equipment_pairs():
 
 def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: str):
     
-    #EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+   
     EMBEDDING_MODEL = "BAAI/bge-m3"
 
-    #pdf_path = Path(r"C:\Users\OMISTAJA\OneDrive - Hämeen ammattikorkeakoulu\HAMK\AI ja neural\Git_AI_Dev_Project\data\Manuals\VACON-100-Wall-mounted-Drives-Operating-Guide-DPD01711H-EN.pdf") # change the path if you want to test!
+   
     pdf_path = Path(pdf_path)
     
     #Error handling for invalid file format or missing file
