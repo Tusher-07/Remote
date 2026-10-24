@@ -50,7 +50,7 @@ class OllamaModelClient:
             response = self._client.chat(
                 model=selected_model,
                 messages=messages,
-                think=False, 
+                #think=False, 
             )
             print("Ollaman vastaus:", repr(response.message.content), flush=True)
             
