@@ -1,10 +1,6 @@
 import gradio as gr
 from src.services.ai_service import generate_response
 from ai_service import DEFAULT_MODEL_ID, INSTALLED_MODELS, ai_service
-
-
-
-
 def format_sources(result):
     if result["reply"].evidence_status == "insufficient":
         return "No cited source: the retrieved passages did not contain enough evidence."
