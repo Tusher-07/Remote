@@ -2,7 +2,7 @@ from pathlib import Path
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import chromadb
-
+import shutil
 from functools import lru_cache
 
 @lru_cache(maxsize=1)
@@ -18,7 +18,18 @@ def get_search_resources():
     )
 
     return embedding_model, collection
+def get_equipment_pairs():
+    """Return unique manufacturer and model pairs stored in ChromaDB."""
+    _, collection = get_search_resources()
+    stored = collection.get(include=["metadatas"])
 
+    equipment_pairs = {
+        (metadata["manufacturer"], metadata["model"])
+        for metadata in stored["metadatas"]
+        if metadata.get("manufacturer") and metadata.get("model")
+    }
+
+    return sorted(equipment_pairs)
 
 
 def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: str):
@@ -181,6 +192,26 @@ def chunk_and_embed_pdf(pdf_path, manufacturer: str, model: str, device_type: st
         documents=[chunk["text"] for chunk in CHUNKS],
         metadatas=[chunk["metadata"] for chunk in CHUNKS],
     )
+# Move the successfully processed PDF
+    source_path = Path(pdf_path)
+    processed_dir = (
+        Path(__file__).resolve().parent.parent
+        / "data"
+        / "Processed manuals"
+    )
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    destination_path = processed_dir / source_path.name
+
+    counter = 2
+    while destination_path.exists():
+        destination_path = (
+            processed_dir
+            / f"{source_path.stem}_{counter}{source_path.suffix}"
+        )
+        counter += 1
+
+    shutil.move(str(source_path), str(destination_path))
 
     return len(CHUNKS), True
 
@@ -191,13 +222,14 @@ def retrieve(
     embedding_model,
     collection, 
     top_k=3
-    ):
-    
+       ):
+    if collection.count() == 0:
+        return []
+
     query_vector = embedding_model.encode(
         [question],
         normalize_embeddings=True,
     ).tolist()[0]
-
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=min(top_k, collection.count()),
