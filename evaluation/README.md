@@ -1,22 +1,79 @@
-# Evaluation Framework
+# AI Maintenance Manual Assistant for Industrial Equipment
 
-Systematic evaluation is essential for assessing whether your AI application reliably solves your target user's problem.
+## Team members
 
-## How to Conduct Evaluation
+- Budhathoki Tika (tika.budhathoki@student.hamk.fi)
+- Tusher Monjurul (monjurul.tusher@student.hamk.fi)
+- Amil Mahfuj (mahfuj.amil@student.hamk.fi)
+- Petri Suopanki (petri.suopanki@student.hamk.fi )
 
-Students are expected to define and run manual or script-assisted evaluations against representative test cases.
+## Problem
 
-### Test Case Categories
+### Intended users
+The primary users are industrial maintenance personnel and equipment operators who need instructions related to equipment fault codes.
 
-Your evaluation dataset in [`test_cases.json`](test_cases.json) should cover three primary categories:
+### Problem statement
+Finding troubleshooting instructions in lengthy, equipment-specific manuals takes time. Paper manuals for older equipment may also be missing or unavailable. The application helps users find instructions for the correct equipment and fault code in stored digital manuals and presents them as clear steps.
 
-1. **Successful Cases (Typical Inputs):** Standard queries or inputs that your application is designed to handle successfully under normal operating conditions.
-2. **Difficult Cases (Edge Cases):** Ambiguous queries, long inputs, unusual domain terms, or edge cases that test model robustness and retrieval/tool quality.
-3. **Failure / Adversarial Cases:** Empty inputs, malformed requests, out-of-scope questions, or connection drops that verify controlled error handling.
+### Why AI is appropriate
+Traditional search can locate a fault code, but an LLM enables natural-language queries, clarifying questions, and the combination of information from different manual sections into an understandable response. Retrieval-Augmented Generation (RAG) grounds the response in the content of the selected manuals.
 
-## Evaluation Process
+## Solution
+We will develop an AI assistant that retrieves troubleshooting and repair instructions from stored operation and maintenance manuals. It presents numbered steps, source references, and the safety requirements stated in the manual.
+The prototype will use approximately 2–5 example manuals, a Gradio user interface, and an LLM running locally through Ollama. Automated web search is outside the scope of the first version.
+The application will be evaluated using demonstration questions to assess answer accuracy, source references, and the handling of missing information.
 
-1. **Define Test Cases:** Populate `test_cases.json` with realistic inputs and expected behaviors tailored to your user problem.
-2. **Execute System:** Run each test case through your application interface.
-3. **Log & Review:** Record `actual_result` and assign a `status` (`pass`, `fail`, `partial`).
-4. **Summarize Results:** Synthesize findings in [`evaluation_results.md`](evaluation_results.md).
+## Main user workflow
+
+1. **User Input:** The user enters a fault code and equipment details through the Gradio interface.
+2. **Processing & Guardrails:** The service layer validates the input, requests additional details when needed, and retrieves relevant sections from the correct manual. The response is restricted to the retrieved information.
+3. **Model Response:** The LLM running through Ollama turns the retrieved instructions into a numbered list of steps, displayed in the interface with source references. If insufficient information is found, the application explains this and advises the user to look for the correct manual on the manufacturer’s website.
+
+## Architecture
+
+Below is the initial starter architecture. As your project evolves with additional capabilities, replace or extend this diagram in [`docs/architecture.md`](docs/architecture.md).
+
+```text
+User
+  ↓
+Gradio UI (app/ui.py)
+  ↓
+Application / AI Service (src/services/ai_service.py)
+  ↓
+Model Client (src/models/model_client.py)
+  ↓
+Ollama (Local LLM Server)
+```
+
+> **Core Architectural Rule:** The user interface must NEVER communicate directly with the model client or Ollama. All interactions must pass through the service layer (`ai_service.py`).
+
+## Model
+
+- **Model used:** e.g., `llama3.2` (or specified local Ollama model)
+- **Selection rationale:** Why was this specific model chosen for your project (e.g., lightweight, performance, context size)?
+
+## Additional AI capability
+
+RAG (Retrieval-Augmented Generation)
+
+### Capability justification
+
+RAG retrieves relevant instructions from equipment manuals and provides them as context for the LLM. This helps the assistant give equipment-specific troubleshooting steps with source references, reducing the risk of unsupported advice.
+
+## Setup
+
+
+
+## Evaluation
+
+Describe your evaluation methodology and summarize key results. Starter test cases can be found in [`evaluation/test_cases.json`](evaluation/test_cases.json).
+
+Refer to [`evaluation/README.md`](evaluation/README.md) for guidelines on defining success, edge cases, and failure scenarios.
+
+## Known limitations
+
+- Highlight known system limitations, unhandled edge cases, or boundaries of current capabilities.
+
+## Future improvements
+
+- List planned feature enhancements, architectural refactorings, or future capabilities.
