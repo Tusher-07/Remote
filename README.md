@@ -7,7 +7,7 @@
 - Amil Mahfuj (mahfuj.amil@student.hamk.fi)
 - Petri Suopanki (petri.suopanki@student.hamk.fi)
 
-  ## Recorded Group Presentation
+## Recorded Group Presentation
 
 [Watch our recorded presentation](https://hameenamk-my.sharepoint.com/:v:/g/personal/amk1004780_student_hamk_fi/IQCtCdR8YpNxSrxf9oDI_SV2AWw_Ey6PKrT9Qhk9JwPsf-s?email=mazhar.mohsin%40hamk.fi&e=Lgb89N)
 
